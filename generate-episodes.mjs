@@ -37,6 +37,16 @@ function decodeEntities(s) {
     .replace(/&amp;/g, "&").trim();
 }
 
+function stripHtml(s) {
+  return (s || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(parseInt(n, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&apos;|&#0?39;/g, "'")
+    .replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function tag(block, name) {
   const m = new RegExp("<" + name + "[^>]*>([\\s\\S]*?)<\\/" + name + ">", "i").exec(block);
   return m ? decodeEntities(m[1]) : "";
@@ -74,6 +84,7 @@ function parseItems(xml) {
       url,
       page: tag(block, "link"),
       date: tag(block, "pubDate"),
+      description: stripHtml(tag(block, "description")),
     });
   }
   return out;

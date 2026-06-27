@@ -263,7 +263,10 @@ function parseFeed(text) {
       const m = /https?:\/\/[^\s"'<>]+\.(?:mp3|m4a|aac|ogg|wav)(?:\?[^\s"'<>]*)?/i.exec(html);
       if (m) url = m[0];
     }
-    if (url) out.push({ title: title || titleFromUrl(url), url, page, date });
+    const descNode = item.querySelector("description");
+    const rawDesc = descNode ? descNode.textContent.trim() : "";
+    const description = rawDesc.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (url) out.push({ title: title || titleFromUrl(url), url, page, date, description });
   });
   return out;
 }
@@ -305,8 +308,8 @@ async function tryManifest() {
     const data = await res.json();
     const arr = Array.isArray(data) ? data : (data.episodes || []);
     return dedupe(arr.map((e) => typeof e === "string"
-      ? { title: titleFromUrl(e), url: e, page: "", date: "" }
-      : { title: e.title || titleFromUrl(e.url), url: e.url, page: e.page || e.link || "", date: e.date || "" }
+      ? { title: titleFromUrl(e), url: e, page: "", date: "", description: "" }
+      : { title: e.title || titleFromUrl(e.url), url: e.url, page: e.page || e.link || "", date: e.date || "", description: e.description || "" }
     ).filter((e) => e.url));
   } catch (e) { return []; }
 }
@@ -356,7 +359,10 @@ function updateNowPlaying() {
   } else {
     titleEl.textContent = ep.title || titleFromUrl(ep.url);
   }
-  metaEl.textContent = ep.date ? new Date(ep.date).toLocaleDateString() : "";
+  const dateStr = ep.date ? new Date(ep.date).toLocaleDateString() : "";
+  const rawDesc = ep.description || "";
+  const tmp = document.createElement("textarea"); tmp.innerHTML = rawDesc; const desc = tmp.value;
+  metaEl.textContent = dateStr && desc ? dateStr + " — " + desc : dateStr || desc;
   countEl.textContent = (pos + 1) + " / " + order.length + " in this shuffle";
   renderList();
   updateMediaSession(ep);
