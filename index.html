@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ask The Professor — Shuffle Player</title>
+<style>
+  :root {
+    --bg: #11151c;
+    --panel: #1b2230;
+    --panel-2: #232c3d;
+    --text: #e8edf5;
+    --muted: #9aa7bd;
+    --accent: #ffb000;
+    --accent-2: #4aa3ff;
+    --good: #4ade80;
+    --bad: #f87171;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(1200px 800px at 70% -10%, #1d2738 0%, var(--bg) 60%);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+  .wrap { width: 100%; max-width: 720px; }
+  header { text-align: center; margin-bottom: 18px; }
+  header h1 { margin: 0 0 4px; font-size: 1.5rem; letter-spacing: .3px; }
+  header p { margin: 0; color: var(--muted); font-size: .9rem; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid #2a3447;
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.35);
+  }
+
+  .now {
+    display: flex; flex-direction: column; gap: 6px;
+    text-align: center; min-height: 86px; justify-content: center;
+  }
+  .now .label { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: 1.5px; }
+  .now .title { font-size: 1.45rem; font-weight: 700; word-break: break-word; }
+  .now .title a { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--muted); }
+  .now .meta { color: var(--muted); font-size: .85rem; }
+
+  .bar {
+    margin: 18px 0 6px; height: 8px; border-radius: 999px; background: var(--panel-2);
+    overflow: hidden; cursor: pointer;
+  }
+  .bar > div { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+  .times { display: flex; justify-content: space-between; color: var(--muted); font-size: .8rem; }
+
+  .controls { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  button {
+    background: var(--panel-2); color: var(--text); border: 1px solid #313c52;
+    border-radius: 10px; padding: 10px 14px; font-size: .95rem; cursor: pointer;
+    transition: transform .05s ease, background .15s ease, border-color .15s ease;
+  }
+  button:hover { background: #2b3650; border-color: #3c4a66; }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--accent); color: #1a1300; border-color: transparent; font-weight: 700; padding: 12px 22px; }
+  button.primary:hover { background: #ffc23d; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .icon { font-size: 1.1rem; }
+
+  .row { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: .85rem; user-select: none; cursor: pointer; }
+  .vol { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: .85rem; }
+  input[type="range"] { accent-color: var(--accent); }
+
+  .status { margin-top: 14px; text-align: center; color: var(--muted); font-size: .85rem; min-height: 1.2em; }
+  .status.error { color: var(--bad); }
+  .status.ok { color: var(--good); }
+
+  .count { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 6px; }
+
+  details.help { margin-top: 18px; background: var(--panel); border: 1px solid #2a3447; border-radius: var(--radius); padding: 0 18px; }
+  details.help summary { cursor: pointer; padding: 14px 0; color: var(--muted); font-size: .9rem; }
+  details.help[open] summary { color: var(--text); }
+  details.help .body { padding-bottom: 16px; font-size: .9rem; color: var(--muted); }
+  details.help code { background: #0d1118; padding: 1px 6px; border-radius: 6px; color: var(--accent-2); }
+  details.help textarea { width: 100%; min-height: 120px; background: #0d1118; color: var(--text); border: 1px solid #2a3447; border-radius: 8px; padding: 10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .82rem; }
+  details.help input[type="text"] { width: 100%; background: #0d1118; color: var(--text); border: 1px solid #2a3447; border-radius: 8px; padding: 8px 10px; margin: 4px 0 10px; }
+  .help-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .list { margin-top: 16px; max-height: 280px; overflow: auto; border-radius: var(--radius); border: 1px solid #2a3447; }
+  .list .item { padding: 8px 12px; border-bottom: 1px solid #222b3b; color: var(--muted); font-size: .85rem; cursor: pointer; display: flex; gap: 8px; }
+  .list .item:last-child { border-bottom: none; }
+  .list .item:hover { background: var(--panel-2); color: var(--text); }
+  .list .item.current { color: var(--accent); font-weight: 600; }
+  .list .item .n { width: 2.5em; text-align: right; color: #5b6b86; flex: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📻 Ask The Professor — Shuffle</h1>
+    <p>Plays every archived episode in random order, back to back. Press play once; it keeps going on its own.</p>
+  </header>
+
+  <div class="card">
+    <div class="now">
+      <div class="label">Now playing</div>
+      <div class="title" id="title">Loading episodes…</div>
+      <div class="meta" id="meta"></div>
+    </div>
+
+    <div class="bar" id="bar" title="Seek"><div id="fill"></div></div>
+    <div class="times"><span id="cur">0:00</span><span id="dur">0:00</span></div>
+
+    <div class="controls">
+      <button id="prev" title="Previous (P)"><span class="icon">⏮</span></button>
+      <button id="play" class="primary" title="Play / Pause (Space)">▶ Start listening</button>
+      <button id="next" title="Next (N)"><span class="icon">⏭</span></button>
+      <button id="reshuffle" title="Shuffle the order again">🔀 Re-shuffle</button>
+    </div>
+
+    <div class="row">
+      <label class="toggle"><input type="checkbox" id="continuous" checked /> Continuous (never stops)</label>
+      <span class="vol">🔉 <input type="range" id="vol" min="0" max="1" step="0.01" value="1" /></span>
+    </div>
+
+    <div class="status" id="status"></div>
+    <div class="count" id="count"></div>
+  </div>
+
+  <details class="help" id="listWrap">
+    <summary>Episode list</summary>
+    <div class="body">
+      <div class="list" id="list"></div>
+    </div>
+  </details>
+
+  <details class="help">
+    <summary>Episodes not loading? Add them manually</summary>
+    <div class="body">
+      <p>This player needs a list of episode audio URLs. The most reliable way is to run the included
+        <code>generate-episodes.mjs</code> script (see <code>README.md</code>) to create
+        <code>episodes.json</code>. You can also try fetching the feed live below, or paste a list.</p>
+
+      <p><strong>Fetch from the podcast feed</strong> (works only if your browser can reach the feed without a CORS block):</p>
+      <input type="text" id="feedUrl" value="https://sites.udmercy.edu/atp/feed/" />
+      <div class="help-actions">
+        <button id="fetchDirect">Fetch directly</button>
+        <button id="fetchProxy">Fetch via CORS proxy</button>
+      </div>
+
+      <p style="margin-top:14px"><strong>Or paste</strong> feed XML, or one audio URL per line, then load:</p>
+      <textarea id="pasteArea" placeholder="https://sites.udmercy.edu/atp/.../episode-2146.mp3&#10;https://...&#10;— or paste the full RSS feed XML here —"></textarea>
+      <div class="help-actions" style="margin-top:8px">
+        <button id="loadPaste">Load pasted list</button>
+        <button id="clearCache">Clear saved list &amp; progress</button>
+      </div>
+    </div>
+  </details>
+</div>
+
+<audio id="audio" preload="auto"></audio>
+
+<script>
+"use strict";
+
+// ---- Configuration -------------------------------------------------------
+// Feed candidates tried (in order) when fetching the episode list live.
+const FEED_CANDIDATES = [
+  "https://sites.udmercy.edu/atp/feed/",
+  "https://sites.udmercy.edu/atp/feed/podcast/",
+  "https://sites.udmercy.edu/atp/category/news/feed/",
+];
+// Public CORS proxies used only as a fallback for fetching the LIST.
+// (Audio playback never needs these.) Tried in order.
+const CORS_PROXIES = [
+  (u) => "https://corsproxy.io/?url=" + encodeURIComponent(u),
+  (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+];
+const STORE_KEY = "atp-shuffle-v1";
+
+// ---- State ---------------------------------------------------------------
+let episodes = [];   // master list: {title, url, page, date}
+let order = [];      // shuffled indices into `episodes`
+let pos = 0;         // index into `order`
+const audio = document.getElementById("audio");
+
+// ---- DOM -----------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
+const titleEl = $("title"), metaEl = $("meta"), statusEl = $("status"), countEl = $("count");
+const fill = $("fill"), curEl = $("cur"), durEl = $("dur"), bar = $("bar");
+const playBtn = $("play"), listEl = $("list");
+
+// ---- Helpers -------------------------------------------------------------
+function setStatus(msg, kind) {
+  statusEl.textContent = msg || "";
+  statusEl.className = "status" + (kind ? " " + kind : "");
+}
+function fmt(t) {
+  if (!isFinite(t) || t < 0) t = 0;
+  const m = Math.floor(t / 60), s = Math.floor(t % 60);
+  return m + ":" + String(s).padStart(2, "0");
+}
+function shuffle(a) { // Fisher–Yates
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function save() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      episodes, order, pos, time: audio.currentTime || 0
+    }));
+  } catch (e) { /* ignore quota errors */ }
+}
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "null"); }
+  catch (e) { return null; }
+}
+
+// ---- Episode list parsing ------------------------------------------------
+function titleFromUrl(u) {
+  const m = /episode[-_]?(\d+)/i.exec(u);
+  if (m) return "Episode " + m[1];
+  try {
+    const parts = new URL(u).pathname.split("/").filter(Boolean);
+    return decodeURIComponent(parts[parts.length - 1] || u).replace(/\.[a-z0-9]+$/i, "");
+  } catch (e) { return u; }
+}
+
+function parseFeed(text) {
+  // Parse an RSS/Atom feed and return episode objects with audio enclosures.
+  const out = [];
+  let doc;
+  try { doc = new DOMParser().parseFromString(text, "text/xml"); } catch (e) { return out; }
+  if (!doc || doc.querySelector("parsererror")) return out;
+
+  doc.querySelectorAll("item, entry").forEach((item) => {
+    const get = (sel) => { const n = item.querySelector(sel); return n ? n.textContent.trim() : ""; };
+    const title = get("title");
+    const page = get("link") || (item.querySelector("link") && item.querySelector("link").getAttribute("href")) || "";
+    const date = get("pubDate") || get("published") || "";
+
+    // Prefer <enclosure> with an audio type/extension.
+    let url = "";
+    item.querySelectorAll("enclosure").forEach((enc) => {
+      const u = enc.getAttribute("url") || "";
+      const type = (enc.getAttribute("type") || "").toLowerCase();
+      if (!url && (type.startsWith("audio") || /\.(mp3|m4a|aac|ogg|wav)(\?|$)/i.test(u))) url = u;
+    });
+    // Fallback: media:content or any audio URL in the content.
+    if (!url) {
+      const mc = item.querySelector("content[url], *|content[url]");
+      if (mc && /\.(mp3|m4a|aac|ogg|wav)/i.test(mc.getAttribute("url") || "")) url = mc.getAttribute("url");
+    }
+    if (!url) {
+      const html = get("encoded") || get("description") || get("content") || "";
+      const m = /https?:\/\/[^\s"'<>]+\.(?:mp3|m4a|aac|ogg|wav)(?:\?[^\s"'<>]*)?/i.exec(html);
+      if (m) url = m[0];
+    }
+    if (url) out.push({ title: title || titleFromUrl(url), url, page, date });
+  });
+  return out;
+}
+
+function parsePlain(text) {
+  // One audio URL per line.
+  return text.split(/\r?\n/).map((l) => l.trim())
+    .filter((l) => /^https?:\/\/\S+\.(mp3|m4a|aac|ogg|wav)(\?|$)/i.test(l))
+    .map((u) => ({ title: titleFromUrl(u), url: u, page: "", date: "" }));
+}
+
+function ingestText(text) {
+  const t = (text || "").trim();
+  if (!t) return [];
+  if (/^\s*</.test(t) || /<rss|<feed|<item|<entry/i.test(t)) {
+    const eps = parseFeed(t);
+    if (eps.length) return eps;
+  }
+  return parsePlain(t);
+}
+
+function dedupe(list) {
+  const seen = new Set(), out = [];
+  for (const e of list) { if (e && e.url && !seen.has(e.url)) { seen.add(e.url); out.push(e); } }
+  return out;
+}
+
+// ---- Loading sources -----------------------------------------------------
+async function fetchText(url) {
+  const res = await fetch(url, { redirect: "follow" });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.text();
+}
+
+async function tryManifest() {
+  try {
+    const res = await fetch("episodes.json", { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const arr = Array.isArray(data) ? data : (data.episodes || []);
+    return dedupe(arr.map((e) => typeof e === "string"
+      ? { title: titleFromUrl(e), url: e, page: "", date: "" }
+      : { title: e.title || titleFromUrl(e.url), url: e.url, page: e.page || e.link || "", date: e.date || "" }
+    ).filter((e) => e.url));
+  } catch (e) { return []; }
+}
+
+async function tryFeeds(useProxy) {
+  for (const feed of FEED_CANDIDATES) {
+    const attempts = useProxy ? CORS_PROXIES.map((p) => p(feed)) : [feed];
+    for (const u of attempts) {
+      try {
+        setStatus("Fetching " + (useProxy ? "via proxy: " : "") + feed + " …");
+        const text = await fetchText(u);
+        const eps = dedupe(parseFeed(text));
+        if (eps.length) return eps;
+      } catch (e) { /* try next */ }
+    }
+  }
+  return [];
+}
+
+// ---- Playlist control ----------------------------------------------------
+function buildOrder() {
+  order = shuffle(episodes.map((_, i) => i));
+  pos = 0;
+}
+
+function current() { return episodes[order[pos]]; }
+
+function renderList() {
+  listEl.innerHTML = "";
+  order.forEach((epIdx, i) => {
+    const ep = episodes[epIdx];
+    const div = document.createElement("div");
+    div.className = "item" + (i === pos ? " current" : "");
+    div.innerHTML = '<span class="n">' + (i + 1) + '</span><span>' +
+      (ep.title || ep.url).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])) + "</span>";
+    div.onclick = () => { pos = i; loadCurrent(true); };
+    listEl.appendChild(div);
+  });
+}
+
+function updateNowPlaying() {
+  const ep = current();
+  if (!ep) return;
+  if (ep.page) {
+    titleEl.innerHTML = '<a href="' + ep.page + '" target="_blank" rel="noopener">' +
+      (ep.title || titleFromUrl(ep.url)) + "</a>";
+  } else {
+    titleEl.textContent = ep.title || titleFromUrl(ep.url);
+  }
+  metaEl.textContent = ep.date ? new Date(ep.date).toLocaleDateString() : "";
+  countEl.textContent = (pos + 1) + " / " + order.length + " in this shuffle";
+  renderList();
+  updateMediaSession(ep);
+  save();
+}
+
+let errorStreak = 0;
+function loadCurrent(autoplay) {
+  const ep = current();
+  if (!ep) return;
+  audio.src = ep.url;
+  audio.load();
+  updateNowPlaying();
+  if (autoplay) play();
+}
+
+function play() {
+  audio.play().then(() => {
+    playBtn.textContent = "⏸ Pause";
+    setStatus("");
+  }).catch((e) => {
+    // Autoplay blocked until a user gesture.
+    playBtn.textContent = "▶ Start listening";
+    setStatus("Press play to start (your browser blocks autoplay until you click).");
+  });
+}
+function pause() { audio.pause(); playBtn.textContent = "▶ Play"; }
+
+function next(auto) {
+  if (!order.length) return;
+  if (pos + 1 < order.length) {
+    pos++;
+  } else if ($("continuous").checked) {
+    buildOrder();           // fresh shuffle, keep going forever
+    setStatus("Reached the end — reshuffled and continuing.", "ok");
+  } else {
+    pause();
+    setStatus("Finished the shuffle. Turn on Continuous to loop forever.", "ok");
+    return;
+  }
+  loadCurrent(true);
+}
+function prev() {
+  if (!order.length) return;
+  if (audio.currentTime > 3) { audio.currentTime = 0; return; }
+  pos = (pos - 1 + order.length) % order.length;
+  loadCurrent(true);
+}
+
+// ---- Media Session (lock-screen / hardware keys) -------------------------
+function updateMediaSession(ep) {
+  if (!("mediaSession" in navigator)) return;
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: ep.title || titleFromUrl(ep.url),
+    artist: "Ask The Professor",
+    album: "University of Detroit Mercy",
+  });
+}
+if ("mediaSession" in navigator) {
+  navigator.mediaSession.setActionHandler("previoustrack", prev);
+  navigator.mediaSession.setActionHandler("nexttrack", () => next(false));
+  navigator.mediaSession.setActionHandler("play", play);
+  navigator.mediaSession.setActionHandler("pause", pause);
+}
+
+// ---- Audio events --------------------------------------------------------
+audio.addEventListener("ended", () => { errorStreak = 0; next(true); });
+audio.addEventListener("error", () => {
+  errorStreak++;
+  if (errorStreak > Math.max(5, episodes.length)) {
+    setStatus("Couldn't play any episodes — the URLs may be wrong or unreachable.", "error");
+    pause();
+    return;
+  }
+  setStatus("Skipping an episode that wouldn't load…", "error");
+  setTimeout(() => next(true), 600);
+});
+audio.addEventListener("timeupdate", () => {
+  const d = audio.duration || 0;
+  fill.style.width = (d ? (audio.currentTime / d) * 100 : 0) + "%";
+  curEl.textContent = fmt(audio.currentTime);
+  durEl.textContent = fmt(d);
+  if (Math.floor(audio.currentTime) % 5 === 0) save();
+});
+audio.addEventListener("playing", () => { errorStreak = 0; });
+
+// ---- UI wiring -----------------------------------------------------------
+playBtn.onclick = () => (audio.paused ? play() : pause());
+$("next").onclick = () => next(false);
+$("prev").onclick = prev;
+$("reshuffle").onclick = () => { buildOrder(); loadCurrent(true); setStatus("Shuffled again.", "ok"); };
+$("continuous").onchange = save;
+$("vol").oninput = (e) => { audio.volume = +e.target.value; };
+bar.onclick = (e) => {
+  const r = bar.getBoundingClientRect();
+  if (audio.duration) audio.currentTime = ((e.clientX - r.left) / r.width) * audio.duration;
+};
+document.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (e.code === "Space") { e.preventDefault(); audio.paused ? play() : pause(); }
+  else if (e.key === "n" || e.key === "ArrowRight") next(false);
+  else if (e.key === "p" || e.key === "ArrowLeft") prev();
+});
+
+$("fetchDirect").onclick = async () => {
+  const eps = await tryFeeds(false);
+  finishLoad(eps, "Fetched directly from the feed.");
+};
+$("fetchProxy").onclick = async () => {
+  const eps = await tryFeeds(true);
+  finishLoad(eps, "Fetched via CORS proxy.");
+};
+$("loadPaste").onclick = () => {
+  const eps = dedupe(ingestText($("pasteArea").value));
+  finishLoad(eps, "Loaded " + eps.length + " episodes from pasted text.");
+};
+$("clearCache").onclick = () => {
+  localStorage.removeItem(STORE_KEY);
+  setStatus("Cleared saved list and progress. Reload the page.", "ok");
+};
+
+function finishLoad(eps, okMsg) {
+  if (!eps || !eps.length) { setStatus("No audio episodes found from that source.", "error"); return; }
+  episodes = eps;
+  buildOrder();
+  loadCurrent(false);
+  setStatus(okMsg + " Press play to begin.", "ok");
+}
+
+// ---- Boot ----------------------------------------------------------------
+async function boot() {
+  // 1) Resume a saved session if one exists.
+  const saved = load();
+  if (saved && Array.isArray(saved.episodes) && saved.episodes.length) {
+    episodes = saved.episodes;
+    order = Array.isArray(saved.order) && saved.order.length ? saved.order : shuffle(episodes.map((_, i) => i));
+    pos = Math.min(saved.pos || 0, order.length - 1);
+    $("continuous").checked = true;
+    loadCurrent(false);
+    if (saved.time) audio.currentTime = saved.time;
+    setStatus("Resumed where you left off. Press play to continue.", "ok");
+    // Refresh in the background from the manifest in case new episodes were added.
+    tryManifest().then((m) => {
+      if (m.length > episodes.length) {
+        episodes = m; buildOrder(); loadCurrent(false);
+        setStatus("Loaded " + m.length + " episodes (new ones added). Press play.", "ok");
+      }
+    });
+    return;
+  }
+
+  // 2) Try the committed manifest.
+  setStatus("Loading episodes…");
+  let eps = await tryManifest();
+  if (eps.length) { finishLoad(eps, "Loaded " + eps.length + " episodes."); return; }
+
+  // 3) Try fetching the feed live (direct, then via proxy).
+  eps = await tryFeeds(false);
+  if (!eps.length) eps = await tryFeeds(true);
+  if (eps.length) { finishLoad(eps, "Loaded " + eps.length + " episodes from the live feed."); return; }
+
+  // 4) Nothing worked — guide the user.
+  titleEl.textContent = "No episodes yet";
+  setStatus("Couldn't load an episode list automatically. Open “Episodes not loading?” below to generate or paste one.", "error");
+  countEl.textContent = "";
+}
+
+boot();
+</script>
+</body>
+</html>
