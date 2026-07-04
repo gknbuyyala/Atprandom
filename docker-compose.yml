@@ -1,0 +1,21 @@
+# Ask The Professor shuffle player — QNAP Container Station / docker compose.
+#
+#   docker compose up -d --build
+#
+# Then open  http://<your-nas-ip>:8080  from any device on your network.
+services:
+  atp-shuffle:
+    build: .
+    image: atp-shuffle:latest
+    container_name: atp-shuffle
+    ports:
+      - "8080:8080"          # change the left number to use a different host port
+    environment:
+      PORT: "8080"
+      REGEN_ON_START: "true"     # rebuild the episode list when the container starts
+      REGEN_INTERVAL_HOURS: "168" # and again every 7 days to pick up new shows (0 = off)
+    restart: unless-stopped
+    # Optional: keep the generated episode list on the NAS so it survives
+    # recreation and you can inspect it. Create the folder first on the NAS.
+    # volumes:
+    #   - /share/Container/atp-shuffle/episodes.json:/app/episodes.json

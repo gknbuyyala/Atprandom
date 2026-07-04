@@ -45,11 +45,59 @@ The player also tries, in order:
 So if your browser *can* reach the feed, it may work with no script at all — but
 generating `episodes.json` is what guarantees the full archive loads everywhere.
 
+## Run it on a NAS / server with Docker (recommended for always-on)
+
+A NAS is the best home for this: it's always on, it can reach the ATP feed
+itself (so it builds the full episode list with no other computer involved),
+and you can open the player from any device on your network.
+
+The container serves the player **and** refreshes `episodes.json` — on startup
+and on a schedule — so it stays current on its own.
+
+### QNAP (Container Station)
+
+Container Station can build straight from this repo using the included
+`docker-compose.yml`.
+
+1. Copy this folder onto the NAS (e.g. to `/share/Container/atp-shuffle`) — via
+   File Station, or `git clone` over SSH.
+2. In **Container Station → Applications → Create**, give it a name, paste the
+   contents of `docker-compose.yml`, and set the build context to that folder.
+   (Newer Container Station: "Create Application" accepts a compose file.)
+3. Start it. Open **`http://<your-nas-ip>:8080`** on any device and press
+   **Start listening**.
+
+Prefer the command line? SSH into the NAS and, from this folder:
+
+```bash
+docker compose up -d --build      # older systems: docker-compose up -d --build
+```
+
+Or without compose:
+
+```bash
+docker build -t atp-shuffle .
+docker run -d --name atp-shuffle --restart unless-stopped -p 8080:8080 atp-shuffle
+```
+
+### Settings (environment variables)
+
+| Variable               | Default | Meaning                                             |
+| ---------------------- | ------- | --------------------------------------------------- |
+| `PORT`                 | `8080`  | Port the player is served on                        |
+| `REGEN_ON_START`       | `true`  | Rebuild the episode list when the container starts  |
+| `REGEN_INTERVAL_HOURS` | `168`   | Rebuild again every N hours (7 days); `0` disables  |
+
+The list only gets overwritten on a **successful** fetch, so a temporary
+network blip never wipes your working list. You can also trigger a refresh
+on demand: `curl -X POST http://<your-nas-ip>:8080/refresh`.
+
 ## Updating with new episodes
 
-Re-run `node generate-episodes.mjs` and commit the refreshed `episodes.json`.
-The player also notices a larger manifest on load and picks up new episodes
-automatically.
+**In Docker:** nothing to do — the container refreshes on its schedule (or hit
+`/refresh`). **Standalone:** re-run `node generate-episodes.mjs` and commit the
+refreshed `episodes.json`. Either way, the player picks up a larger list on its
+next load automatically.
 
 ## `episodes.json` format
 
@@ -79,3 +127,6 @@ node generate-episodes.mjs --feed https://sites.udmercy.edu/atp/feed/ \
 | `index.html`            | The self-contained player (no dependencies).         |
 | `generate-episodes.mjs` | Builds `episodes.json` from the podcast feed.        |
 | `episodes.json`         | The episode list the player reads.                   |
+| `server.mjs`            | Tiny static server + scheduled list refresh.         |
+| `Dockerfile`            | Container image (Node 20 Alpine, no deps).           |
+| `docker-compose.yml`    | One-command deploy for QNAP / Docker.                |
