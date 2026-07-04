@@ -68,8 +68,10 @@ so anything that tried to *build* or pull a custom image would fail with
    is elsewhere, edit the host path under `volumes:` in the compose file.)
 2. **Container Station → Applications → Create**, give it a name, and paste the
    contents of `docker-compose.yml`. No build context needed.
-3. Start it. Open **`http://<your-nas-ip>:8080`** on any device and press
-   **Start listening**.
+3. Start it. Open **`http://<your-nas-ip>:1234`** on any device and press
+   **Start listening**. (The compose file maps host port `1234` to the
+   container's internal port `8080` — edit the left side of `ports:` in
+   `docker-compose.yml` to use a different host port.)
 
 Prefer the command line? SSH into the NAS, `cd` into that folder, and run:
 
@@ -86,7 +88,7 @@ paste box (it has no source files) — use SSH from the repo folder:
 
 ```bash
 docker build -t atp-shuffle .
-docker run -d --name atp-shuffle --restart unless-stopped -p 8080:8080 atp-shuffle
+docker run -d --name atp-shuffle --restart unless-stopped -p 1234:8080 atp-shuffle
 ```
 </details>
 
@@ -100,7 +102,7 @@ docker run -d --name atp-shuffle --restart unless-stopped -p 8080:8080 atp-shuff
 
 The list only gets overwritten on a **successful** fetch, so a temporary
 network blip never wipes your working list. You can also trigger a refresh
-on demand: `curl -X POST http://<your-nas-ip>:8080/refresh`.
+on demand: `curl -X POST http://<your-nas-ip>:1234/refresh`.
 
 ## Updating with new episodes
 
