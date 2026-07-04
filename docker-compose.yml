@@ -13,7 +13,7 @@
 # Then: Container Station → Create Application → paste this file → start,
 # or over SSH from the repo folder: `docker compose up -d`.
 #
-# Open  http://<your-nas-ip>:8080  from any device on your network.
+# Open  http://<your-nas-ip>:1234  from any device on your network.
 services:
   atp-shuffle:
     image: node:20-alpine
@@ -21,7 +21,7 @@ services:
     working_dir: /app
     command: ["node", "server.mjs"]
     ports:
-      - "8080:8080"          # change the LEFT number to use a different host port
+      - "1234:8080"          # HOST:CONTAINER — change the LEFT number for a different host port
     volumes:
       # host path (repo on the NAS)  :  path inside the container
       - /share/Container/atp-shuffle:/app
