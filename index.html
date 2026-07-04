@@ -48,7 +48,14 @@
   .now .label { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: 1.5px; }
   .now .title { font-size: 1.45rem; font-weight: 700; word-break: break-word; }
   .now .title a { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--muted); }
-  .now .meta { color: var(--muted); font-size: .85rem; }
+  .now .meta { color: var(--muted); font-size: .8rem; }
+  .now .desc {
+    font-size: .92rem; color: #b8c4d8; line-height: 1.55;
+    background: var(--panel-2); border-radius: 8px; padding: 10px 14px;
+    text-align: left; margin-top: 4px;
+    display: none;
+  }
+  .now .desc.visible { display: block; }
 
   .bar {
     margin: 18px 0 6px; height: 8px; border-radius: 999px; background: var(--panel-2);
@@ -110,6 +117,7 @@
       <div class="label">Now playing</div>
       <div class="title" id="title">Loading episodes…</div>
       <div class="meta" id="meta"></div>
+      <div class="desc" id="desc"></div>
     </div>
 
     <div class="bar" id="bar" title="Seek"><div id="fill"></div></div>
@@ -190,7 +198,7 @@ const audio = document.getElementById("audio");
 
 // ---- DOM -----------------------------------------------------------------
 const $ = (id) => document.getElementById(id);
-const titleEl = $("title"), metaEl = $("meta"), statusEl = $("status"), countEl = $("count");
+const titleEl = $("title"), metaEl = $("meta"), descEl = $("desc"), statusEl = $("status"), countEl = $("count");
 const fill = $("fill"), curEl = $("cur"), durEl = $("dur"), bar = $("bar");
 const playBtn = $("play"), listEl = $("list");
 
@@ -263,7 +271,10 @@ function parseFeed(text) {
       const m = /https?:\/\/[^\s"'<>]+\.(?:mp3|m4a|aac|ogg|wav)(?:\?[^\s"'<>]*)?/i.exec(html);
       if (m) url = m[0];
     }
-    if (url) out.push({ title: title || titleFromUrl(url), url, page, date });
+    const descNode = item.querySelector("description");
+    const rawDesc = descNode ? descNode.textContent.trim() : "";
+    const description = rawDesc.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (url) out.push({ title: title || titleFromUrl(url), url, page, date, description });
   });
   return out;
 }
@@ -305,8 +316,8 @@ async function tryManifest() {
     const data = await res.json();
     const arr = Array.isArray(data) ? data : (data.episodes || []);
     return dedupe(arr.map((e) => typeof e === "string"
-      ? { title: titleFromUrl(e), url: e, page: "", date: "" }
-      : { title: e.title || titleFromUrl(e.url), url: e.url, page: e.page || e.link || "", date: e.date || "" }
+      ? { title: titleFromUrl(e), url: e, page: "", date: "", description: "" }
+      : { title: e.title || titleFromUrl(e.url), url: e.url, page: e.page || e.link || "", date: e.date || "", description: e.description || "" }
     ).filter((e) => e.url));
   } catch (e) { return []; }
 }
@@ -357,6 +368,10 @@ function updateNowPlaying() {
     titleEl.textContent = ep.title || titleFromUrl(ep.url);
   }
   metaEl.textContent = ep.date ? new Date(ep.date).toLocaleDateString() : "";
+  const rawDesc = ep.description || "";
+  const tmp = document.createElement("textarea"); tmp.innerHTML = rawDesc; const desc = tmp.value;
+  descEl.textContent = desc;
+  descEl.classList.toggle("visible", !!desc);
   countEl.textContent = (pos + 1) + " / " + order.length + " in this shuffle";
   renderList();
   updateMediaSession(ep);
