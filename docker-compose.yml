@@ -1,21 +1,38 @@
 # Ask The Professor shuffle player — QNAP Container Station / docker compose.
 #
-#   docker compose up -d --build
+# This uses the stock public `node:20-alpine` image and bind-mounts this repo
+# into it, so there is NOTHING to build and no custom image to pull. That's what
+# makes it work when you paste this file into Container Station's "Create
+# Application" box (which has no access to a Dockerfile).
 #
-# Then open  http://<your-nas-ip>:8080  from any device on your network.
+# BEFORE you start it:
+#   1. Put this whole repo on the NAS at the path below (default
+#      /share/Container/atp-shuffle) — via File Station or `git clone`.
+#   2. If your Container share lives elsewhere, edit the host path in `volumes`.
+#
+# Then: Container Station → Create Application → paste this file → start,
+# or over SSH from the repo folder: `docker compose up -d`.
+#
+# Open  http://<your-nas-ip>:8080  from any device on your network.
 services:
   atp-shuffle:
-    build: .
-    image: atp-shuffle:latest
+    image: node:20-alpine
     container_name: atp-shuffle
+    working_dir: /app
+    command: ["node", "server.mjs"]
     ports:
-      - "8080:8080"          # change the left number to use a different host port
+      - "8080:8080"          # change the LEFT number to use a different host port
+    volumes:
+      # host path (repo on the NAS)  :  path inside the container
+      - /share/Container/atp-shuffle:/app
     environment:
       PORT: "8080"
-      REGEN_ON_START: "true"     # rebuild the episode list when the container starts
+      REGEN_ON_START: "true"      # rebuild the episode list when the container starts
       REGEN_INTERVAL_HOURS: "168" # and again every 7 days to pick up new shows (0 = off)
     restart: unless-stopped
-    # Optional: keep the generated episode list on the NAS so it survives
-    # recreation and you can inspect it. Create the folder first on the NAS.
-    # volumes:
-    #   - /share/Container/atp-shuffle/episodes.json:/app/episodes.json
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

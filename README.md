@@ -56,29 +56,39 @@ and on a schedule — so it stays current on its own.
 
 ### QNAP (Container Station)
 
-Container Station can build straight from this repo using the included
-`docker-compose.yml`.
+The included `docker-compose.yml` needs **no image build**: it runs the stock
+public `node:20-alpine` image and bind-mounts this repo into it. That's what lets
+it work when you paste it into Container Station — the paste box has no Dockerfile,
+so anything that tried to *build* or pull a custom image would fail with
+`failed to read dockerfile` / `pull access denied`.
 
-1. Copy this folder onto the NAS (e.g. to `/share/Container/atp-shuffle`) — via
-   File Station, or `git clone` over SSH.
-2. In **Container Station → Applications → Create**, give it a name, paste the
-   contents of `docker-compose.yml`, and set the build context to that folder.
-   (Newer Container Station: "Create Application" accepts a compose file.)
+1. **Put this repo on the NAS at `/share/Container/atp-shuffle`** — via File
+   Station, or `git clone` over SSH. This step is required: the container mounts
+   that folder to get `index.html`, `server.mjs`, etc. (If your Container share
+   is elsewhere, edit the host path under `volumes:` in the compose file.)
+2. **Container Station → Applications → Create**, give it a name, and paste the
+   contents of `docker-compose.yml`. No build context needed.
 3. Start it. Open **`http://<your-nas-ip>:8080`** on any device and press
    **Start listening**.
 
-Prefer the command line? SSH into the NAS and, from this folder:
+Prefer the command line? SSH into the NAS, `cd` into that folder, and run:
 
 ```bash
-docker compose up -d --build      # older systems: docker-compose up -d --build
+docker compose up -d              # older systems: docker-compose up -d
 ```
 
-Or without compose:
+<details>
+<summary>Alternative: build a self-contained image (SSH/CLI only)</summary>
+
+The repo also includes a `Dockerfile` if you'd rather bake the files into an
+image instead of bind-mounting. This can't be done from the Container Station
+paste box (it has no source files) — use SSH from the repo folder:
 
 ```bash
 docker build -t atp-shuffle .
 docker run -d --name atp-shuffle --restart unless-stopped -p 8080:8080 atp-shuffle
 ```
+</details>
 
 ### Settings (environment variables)
 
