@@ -25,6 +25,7 @@ const FEED_CANDIDATES = [
 
 const MAX_PAGES = parseInt(opt("max-pages", "100"), 10);
 const OUT = opt("out", "episodes.json");
+const PAGE_DELAY_MS = parseInt(opt("page-delay-ms", "400"), 10);
 const UA = "Mozilla/5.0 (atp-shuffle generator)";
 
 const AUDIO_RE = /\.(mp3|m4a|aac|ogg|wav)(\?|$)/i;
@@ -90,10 +91,27 @@ function parseItems(xml) {
   return out;
 }
 
-async function fetchText(url) {
-  const res = await fetch(url, { headers: { "User-Agent": UA, "Accept": "application/rss+xml, application/xml, text/xml, */*" } });
-  if (!res.ok) throw new Error("HTTP " + res.status + " for " + url);
-  return res.text();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Retry transient failures (dropped connections, 5xx, rate limiting). Without this a
+// single blip mid-walk used to end the harvest early and silently truncate the archive.
+async function fetchText(url, tries = 6) {
+  let last;
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    try {
+      const res = await fetch(url, { headers: { "User-Agent": UA, "Accept": "application/rss+xml, application/xml, text/xml, */*" } });
+      if (res.status === 404) throw Object.assign(new Error("HTTP 404 for " + url), { notFound: true });
+      if (!res.ok) throw new Error("HTTP " + res.status + " for " + url);
+      return res.text();
+    } catch (e) {
+      if (e.notFound) throw e; // a real end-of-archive, not worth retrying
+      last = e;
+      // Exponential backoff: the host throttles a fast walk with 403s, and those
+      // clear after a few seconds.
+      if (attempt < tries) await sleep(1000 * 2 ** (attempt - 1));
+    }
+  }
+  throw last;
 }
 
 // Walk a WordPress feed across paged=1..N until a page yields no new items.
@@ -104,13 +122,21 @@ async function harvest(baseFeed) {
     const url = page === 1 ? baseFeed : baseFeed + sep + "paged=" + page;
     let xml;
     try { xml = await fetchText(url); }
-    catch (e) { if (page === 1) throw e; break; } // 404 past last page ends the walk
+    catch (e) {
+      if (page === 1) throw e;
+      // After retries this page is a dead end. A 404 means we walked past the last
+      // page; anything else is reported so a truncated list is never mistaken for
+      // a complete one.
+      if (!e.notFound) process.stdout.write(`  page ${page}: giving up (${e.message})\n`);
+      break;
+    }
     const items = parseItems(xml);
     if (!items.length) break;
     let added = 0;
     for (const ep of items) if (!all.has(ep.url)) { all.set(ep.url, ep); added++; }
     process.stdout.write(`  page ${page}: ${items.length} items (${added} new), total ${all.size}\n`);
     if (added === 0) break; // no new episodes -> we've looped past the end
+    await sleep(PAGE_DELAY_MS); // be polite; the host 403s an unthrottled walk
   }
   return [...all.values()];
 }
